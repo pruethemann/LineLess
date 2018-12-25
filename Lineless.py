@@ -81,6 +81,7 @@ class Lineless(object):
     username = '' 
     metrics = ''
     request_counter = ''
+    API = ''
    
     def __init__(self,username):  
         start_time = time.time()  
@@ -106,7 +107,7 @@ class Lineless(object):
         self.set_following_limit(username)
         
         pwd = self.sqlogin.d['pwd']      
-        print("pwd ", pwd)
+        print("pwd pixelline", pwd)
         self.API = Instagram(username, pwd, self.sqlogin)
         
         ## Define non_reciprocals and followers to engage

@@ -22,7 +22,6 @@ class Instagram(object):
         self.username = username
         self.pwd = pwd
         self.sqlogin = sqlogin
-        self.pwd = "atleastitried"
         
     def login(self):
         if self.API == '':  

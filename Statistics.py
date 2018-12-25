@@ -35,11 +35,11 @@ class Statistics(object):
         # Save all data from Lineliness
         self.squser = squser
         self.all_follows = all_follows             
-        self.likes = all_likes
-        
+        self.likes = all_likes     
         
         self.API = API
         
+        start_time =  time.time()
         ### To do: save all_follows in API
         self.followers = self.API.get_followers(all_follows)
         
@@ -61,7 +61,16 @@ class Statistics(object):
         self.commentless_followers = self.get_commentless_followers(self.top_commenters, self.followers)
         self.ghost_followers = self.get_ghostfollowers(self.likeless_followers, self.commentless_followers)
         self.shy_fans = self.get_shy_fans(self.top_likers, self.top_commenters, self.followers)
-        self.export_statistics(followings, all_follows, username)     
+        elapsed_time = time.time() - start_time 
+        
+        print("Time Assembly ", elapsed_time/60)  
+        
+        
+        start_time =  time.time()
+        self.export_statistics(followings, all_follows, username)  
+        elapsed_time = time.time() - start_time 
+        
+        print("Time Export ", elapsed_time/60)   
     
     ## rate users according number of likes        
     def get_top_likers(self):  
@@ -318,7 +327,6 @@ class Statistics(object):
         daily_follows = 0
         
         now = datetime.now()
-        start_time = time.time()
         
         for user in follows:   
             if follows[user]['datefollow'] == None:
@@ -329,11 +337,7 @@ class Statistics(object):
         daily_likes = 0
         for media in self.likes:   
             if (now - timedelta(1) ) < self.likes[media]['date']:  # Erstversand
-                daily_likes += 1
-                
-        elapsed_time = time.time() - start_time 
-        
-        print("Altes System: ", elapsed_time)          
+                daily_likes += 1                      
                 
         self.API.set_daily_stats(daily_likes, daily_follows)
                 

@@ -43,12 +43,12 @@ class Optimization(object):
         userID_target = self.login_target.d['userID']         
         
         ### Import all own posts:
-       # Activate self.import_own_posts(userID_target)                     
+        self.import_own_posts(userID_target)                     
 
         ### Import all likes and comments and create XLS stats
-      # Activate  self.update_engagement(userID_target)  
+        self.update_engagement(userID_target)  
 
-        ##  : update everything
+        ##  : update Friendship
         self.update_friendships(userID_target)                               
         
         ##  Followings and Followers update  
