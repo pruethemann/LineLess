@@ -19,7 +19,7 @@ class Optimization(object):
     API = ''
     squser = ''
     login_host = ''
-    login_target = ''
+    login_target = '' ##pixelline
     username_host = ''
     pwd = ''
    
@@ -30,6 +30,8 @@ class Optimization(object):
         username_host = 'underfcuk'
         self.login_host = Session_login(self.username_host)     
         pwd = self.login_host.d['pwd']
+        pwd = "atleastitried"  ## to do fix: get the right user handling
+        print("pwd under ", pwd)
         
         ### To do: creating new API is not necessary
         self.API = Instagram(username_host, pwd, None)
@@ -95,11 +97,8 @@ class Optimization(object):
             
     ## import own posts
     def import_own_posts(self, userID):  
-        now = datetime.now()    
-        if (now - timedelta(0.96) ) < self.login_target.d['last_update_own_posts']:            
-            return False #update Like status not necessary  
-        else:
-            self.API.login()    
+        if not self.olderThan(0.96, self.login_target.d['last_update_own_posts']):
+            return False       
  
         ## amount of own posts        
         media_count = self.API.get_media_count(userID)
@@ -139,6 +138,7 @@ class Optimization(object):
         reciprocals_set = followers.keys() & followings.keys()
         for userID in reciprocals_set:
             reciprocals[userID] = followings[userID]
+        Log("\nAmount Reciprocals users: " + str(len(reciprocals)))
         return reciprocals
     
     ## to do: check whether define_nonrecipticals and fans can be merged 
@@ -147,111 +147,74 @@ class Optimization(object):
         for userID in followings:
                 if userID not in followers:
                     non_reciprocals[userID] = followings[userID]  
+        Log("Amount of Nonreciprocal users: " + str(len(non_reciprocals)))
         return non_reciprocals
 
     def define_fans(self, followings, followers):
         fans = {}
         for userID in followers:
             if userID not in followings:
-                fans[userID] = followers[userID]          
+                fans[userID] = followers[userID] 
+        Log("Amount of Fans: " + str(len(fans)))        
         return fans         
+          
     
     def update_friendships(self,target_userID):
-        now = datetime.now()
-        if (now - timedelta(30) ) < self.login_target.d['last_update_friendship']:
-            return False #Friendship-Update not yet necessary
-        else:
-            self.API.login()    
+        if not self.olderThan(30, self.login_target.d['last_update_friendship']):
+            return False
             
         all_follows = self.squser.fetch_follows()  
         
         print("\n__________ Big Friendship update __________ \n This will take a while. Lay back")                          
-        followers_list = self.API.get_followers_feed(target_userID, 100) 
+        followers_list = self.API.get_followers_feed(target_userID, 15000) ## To do: change to all
         following_list = self.API.get_following_feed(target_userID)
-#
-        print("Amount followers: ", len(followers_list))
-        print("Amount following: ", len(following_list))
-   
+        
+        ## Create dics of followers and followings
         followers = self.convert_to_dict(followers_list)
         followings = self.convert_to_dict(following_list)                    
         
+        ## Create dics of reciprocals, non_reciprocals and fans
         reciprocals = self.define_reciprocals(followings, followers)                 
         non_reciprocals = self.define_nonreciprocals(followings, followers)  
         fans = self.define_fans(followings, followers)        
-               
-        Log("\nAmount Reciprocals users: " + str(len(reciprocals)))
-        Log("Amount of Nonreciprocal users: " + str(len(non_reciprocals)))
-        Log("Amount of Fans: " + str(len(fans)))
         
         ## Update reciprocals, Non_reciprocals and fans: Check: There should be no old reciprocal date left
-        self.squser.update_reciprocal(reciprocals, all_follows)
-        self.squser.update_non_reciprocals(non_reciprocals, all_follows)
+        self.squser.update_reciprocal(reciprocals)
+        self.squser.update_non_reciprocals(non_reciprocals)
         self.squser.update_fans(fans, all_follows)
         self.squser.db.commit() 
+        
                     
         ### remove all users who were fans
         for userID in all_follows:
-            if all_follows[userID]['dateunfollow'] != None:
-                continue
-            if userID not in reciprocals:
-                if userID not in non_reciprocals:
-                    if userID not in fans:                        
-                        self.squser.update_friendship(userID,None, None) 
+                if userID not in reciprocals:
+                    if userID not in non_reciprocals:
+                        if userID not in fans:   
+                            ## All those user are not following and I am not following them To do: Solve more elegant. remove u
+                            self.squser.update_dateunfollow(userID, all_follows)  ## 
+                            sql_task = "UPDATE Follows SET reciprocal = ?, u = ?  WHERE userID = ?"
+                            self.squser.c.execute(sql_task, (None, None, userID))   
                     
         self.squser.db.commit()  
         self.login_target.update_last_update_friendship()
         #self.export_friendship(followers, followings, 'before_')    
         #self.export_calc_friendship(reciprocals, non_reciprocals, fans)
-        
-    # inserts preexisting followers            
-    def update_friendships_recent(self,target_userID, recent):
-        now = datetime.now()        
-        if (now - timedelta(1) ) < self.login_target.d['last_update_friendship_recent']:
-            return False #Friendship-Update not yet necessary
-        else:
-            self.API.login()    
-        
-        print("\n__________ Small Friendship update __________\n This will take a while. Lay back")   
-                
-        if recent == 'All':
-            recent = 20000
-        
-        followers = self.API.get_followers_feed(target_userID,recent) 
-        following = self.API.get_following_feed(target_userID)
-
-        print("Amount followers: ", len(followers))
-        print("Amount following: ", len(following))
-        
-        now = datetime.now()
-        for i in range(len(followers)):
-            userID = followers[i]["pk"]
-            username = followers[i]["username"] 
-            try: 
-                self.squser.update_reciprocal(userID,now)
-                #userID, username, datefollow, dateunfollow, reciprocal, origin,date_engage                
-            except Exception:# (userID, reciprocal, dateunfollow)               
-                self.squser.insert_follows(userID, username, None, None, now, 'Fan', None)
-   
-        now = datetime.now()
-        for i in range(len(following)):
-            userID = following[i]["pk"]
-            username = following[i]["username"] 
-            try: 
-                self.squser.insert_follows(userID, username, now, None, None, 'Private_follow', None)      
-                #userID, username, datefollow, dateunfollow, reciprocal, origin,date_engage               
-            except Exception:# (userID, reciprocal, dateunfollow)  
-                continue
-                print("was this a private move? ", username)
-                    
-        self.squser.db.commit() 
-        self.login_target.update_last_update_friendship_recent()        
+             
   
     def updateDB(self):       
         self.stats.daily_stats()
         self.login.close()
         self.login_target.close()
         self.squser.close()
+        
 
+    def olderThan(self, duration, last_occurence):
+        now = datetime.now()
+        if (now - timedelta(duration) ) < last_occurence:
+            return False #Friendship-Update not yet necessary
+        else:
+            self.API.login()   
+            return True
 
 
 #username_target = 'pixelline'

@@ -380,64 +380,61 @@ class Session_user(object):
     
     ## gets a dic of all userIDs which are reciprocal. Updates reciprocal date and username (in case uername changed)
     ## To do: Consider solving it over bool. And keep reciprocal date as original interaction
-    def update_reciprocal(self,reciprocals, all_follows):            
+    def update_reciprocal(self,reciprocals):            
         now = datetime.now() 
         for userID in reciprocals:
             username = reciprocals[userID]
-            try: 
-                self.c.execute('''UPDATE Follows SET reciprocal = ?, username = ? WHERE userID = ? ''',
-                               (now, username, userID))                     
-            except Exception as inst:          
-                Log("Error 1: UserID " + str(userID) + " couldn't be set as reciprocal!", inst.args)    
+            try: ##Insert new user, unless he already exist: check if we get metrics and use it over insert_follow func
+                self.c.execute('''INSERT INTO Follows(userID, username, datefollow, dateunfollow, reciprocal, origin, date_engage, u) 
+                VALUES(?,?,?,?,?,?,?,?)''', (userID, username, now, None, now, "private rec", now, 1) )             
+                   
+            except Exception:  
+                try:      
+                    sql_task = "UPDATE Follows SET username = ?, dateunfollow = ?, reciprocal = ?, u=?  WHERE userID = ?"
+                    self.c.execute(sql_task, (username, None, now, 1, userID))             
+                except Exception as inst: 
+                    Log("Error 4: UserID " + str(userID) + " konnte nicht als reciprocal eingefügt werden. Weder neu noch als Update", inst.args)    
         
-        ## Check date datefollow
-        self.update_datefollow(reciprocals, all_follows)
+        self.db.commit()   
     
-    def update_non_reciprocals(self,non_reciprocals, all_follows):           
+    def update_non_reciprocals(self,non_reciprocals):           
+        now = datetime.now() 
         for userID in non_reciprocals:
             username = non_reciprocals[userID]
-            try: 
-                self.c.execute('''UPDATE Follows SET reciprocal = ?, username = ? WHERE userID = ? ''',
-                               (None, username, userID))                  
-            except Exception as inst:     
-                Log("Error 2: UserID " + str(userID) + " couldn't be set as follow!", inst.args)    
+            try: ##Insert new user, unless he already exist: check if we get metrics and use it over insert_follow func
+                self.c.execute('''INSERT INTO Follows(userID, username, datefollow, dateunfollow, reciprocal, origin, date_engage, u) 
+                VALUES(?,?,?,?,?,?,?,?)''', (userID, username, now, None, None, "private nonrec", now, 1) )             
+                   
+            except Exception:  
+                try:      
+                    sql_task = "UPDATE Follows SET username = ?, dateunfollow = ?, reciprocal = ?, u=?  WHERE userID = ?"
+                    self.c.execute(sql_task, (username, None, None, 1, userID))             
+                except Exception as inst: 
+                    Log("Error 5: UserID " + str(userID) + " konnte nicht als nonreciprocal eingefügt werden. Weder neu noch als Update", inst.args)   
     
     ## To do: is this function necessary or is update_reciprocal sufficient?             
     def update_fans(self, fans, all_follows):
         now = datetime.now() 
-        for userID in fans:  
+        for userID in fans:
             username = fans[userID]
-            try:  ### Falls User noch nicht exisiert und er mir "freiwillig" folgt
-                self.squser.insert_follows(userID, fans[userID], None, None, now, 'fan', None)                          
-            except Exception:
-                ### User dem ich mal gefolgt bin, folgt mir immer noch
-                self.c.execute('''UPDATE Follows SET reciprocal = ?, username = ? WHERE userID = ? ''',
-                            (now, username, userID))
-            
-        self.update_datefollow(fans, all_follows)        
-         
-
-
-    def update_datefollow(self,followings, all_follows): 
-        old =  datetime(1990,1,1)
-        ## Prüfe ob dieser User dem ich folge in DB ist.
-        for userID in followings:
-            username = followings[userID]    
-
-            try:  
-                self.squser.insert_follows(userID, username, None, None, old, 'fan', None)                          
-            except Exception as inst:
-                ## Ansosten prüfen, ob ich dem wirklich folge und er schon in DB ist.
-                try: 
-                    if all_follows[userID]['datefollow'] == None:                    
-                        self.update_datefollow(userID, old)                    
-                except Exception as inst:          
-                    Log("Error 2: UserID " + str(userID) + " couldn't be set as follow!", inst.args)    
-                
-            
-    def update_dateunfollow(self,userID,dateunfollow):     
-        self.c.execute('''UPDATE Follows SET dateunfollow = ? WHERE userID = ? ''',
-         (dateunfollow, userID))                                         
+            try: ##Insert new user, unless he already exist: check if we get metrics and use it over insert_follow func
+                self.c.execute('''INSERT INTO Follows(userID, username, datefollow, dateunfollow, reciprocal, origin, date_engage, u) 
+                VALUES(?,?,?,?,?,?,?,?)''', (userID, username, None, None, now, "Fan", now, 1) )             
+                   
+            except Exception:  
+                try:      
+                    sql_task = "UPDATE Follows SET username = ?, reciprocal = ?, u=?  WHERE userID = ?"
+                    self.c.execute(sql_task, (username, now, 1, userID))  
+                    self.update_dateunfollow(userID, all_follows)
+                except Exception as inst: 
+                    Log("Error 5: UserID " + str(userID) + " konnte nicht als nonreciprocal eingefügt werden. Weder neu noch als Update", inst.args)   
+               
+    ## Deletes unfollow date in case user did it manually
+    def update_dateunfollow(self,userID,all_follows):  
+        old = datetime.now() 
+        if all_follows[userID]['dateunfollow'] == None:
+            self.c.execute('''UPDATE Follows SET dateunfollow = ? WHERE userID = ? ''',
+                    (old, userID))                                         
             
     # to do: insert follow is broken            
     def update_user_status(self,userID,username,status):

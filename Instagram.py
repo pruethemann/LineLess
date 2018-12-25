@@ -218,6 +218,9 @@ class Instagram(object):
             if not temp['big_list']:
                 break
             next_max_id = temp["next_max_id"]
+            
+        if len(followers) > 200:
+             print("Amount imported followers: ", len(followers))
         return followers   
     
     # I have no clue how this works, but it's working.
@@ -235,6 +238,9 @@ class Instagram(object):
             if not temp['big_list']:
                 break
             next_max_id = temp["next_max_id"]
+            
+        if len(following) > 200:
+             print("Amount imported followings: ", len(following))
         return following
     
           

@@ -12,9 +12,12 @@
 
 Highlights:
     - increase likes per user from 3 to 4-5
+    - func: calculateDuration
+    - Port to Git
     
     
 To do: (short time):
+    
     - Separate Statistics from Lineless
     - fix big friendship
     - Fix export: including Overview
@@ -22,6 +25,7 @@ To do: (short time):
     - renaming API to usr in Instagram 
     - save all follows in usr and not Lineless
     - check time saving
+    - Handle user management
 
 
 To do (long term):
@@ -42,7 +46,6 @@ To do (long term):
 - optimize friendship update again. import shy fans over recent update. 
 - Before you follow them. check whether they are already followers. otherwise ignore. They are already good fans
 - dried out bool: Optizime time handling. import all in the first pic
-- fix bug when a post has been uploaded but didnt get any likes yet. or they are not yet imported.
 - bug fix: if less than 500 folowers in DB the script crashes because of the resolution in the engagment algorithm
 - to do: if a user is dried out: save it in DB. Maybe date in the futur?
 - To do: overwrite username during engagment to have the newest username
@@ -89,7 +92,7 @@ class Lineless(object):
         self.sqlogin = Session_login(username)
         self.squser = Session_user(username)    
         
-#        self.whitelisting()
+      #  self.whitelisting()
 
         ## Import Queue
         self.queue = self.squser.fetch_queue()     
@@ -102,7 +105,8 @@ class Lineless(object):
         ## Can we for other rounds or are we at the limit with the follows and likes
         self.set_following_limit(username)
         
-        pwd = self.sqlogin.d['pwd']        
+        pwd = self.sqlogin.d['pwd']      
+        print("pwd ", pwd)
         self.API = Instagram(username, pwd, self.sqlogin)
         
         ## Define non_reciprocals and followers to engage
@@ -813,7 +817,7 @@ class Lineless(object):
                 return False
             
     def whitelisting(self):     
-        white = ["k____emma","haesch_di_taeg","timelessstyle50","frolein_j","nathxlie.k","missismagic_hair_mua","emilyroseirene","bernardo_uzeda","ta.n.ya","fran.zi.s","shotsbyjai","matilda_tws","papilloneffect","sa_jj_ad.askari","joytheangel","labangelina","lemonsoda_scrub","onatepauli","keshiawaters","dwiar55","jioparaiso","andre.alyt","pamisaaa","xx_v.e.r.o_xx","astridpalca","jkornprobst","stinerus","isKetch_zh","lin_fapou","nathalie_von_arx","putpurriii","ellle.7","circus_perfomers","elegantraveler","luca_82_ch","sebastiensatta","expl0_photo","7sevengirl","susassight","marian.good","franziskajann","kontal.kontil","gk_photoroom","rusjaandri","swiss_pepe","kellermarri","sarahrahelalena","tobiasweinhold","suprmeme_ch","lessielessie","jasy_k","bluegirl911","sharpfisch_artwork","wglove26","_vali.k","marina___marinchen","tardigradar","bettywooh","rischaswiss","wiwienne_yang","almazurich","minii_mandy","karesperanza","polaua","sushj92","sisizwae","jmfluna","kurusu_jp","philipmattinson","estherpamies_","maisathome","thegorgeousnothings1"]
+        white = ["ribudeinfroind","k____emma","haesch_di_taeg","timelessstyle50","frolein_j","nathxlie.k","missismagic_hair_mua","emilyroseirene","bernardo_uzeda","ta.n.ya","fran.zi.s","shotsbyjai","matilda_tws","papilloneffect","sa_jj_ad.askari","joytheangel","labangelina","lemonsoda_scrub","onatepauli","keshiawaters","dwiar55","jioparaiso","andre.alyt","pamisaaa","xx_v.e.r.o_xx","astridpalca","jkornprobst","stinerus","isKetch_zh","lin_fapou","nathalie_von_arx","putpurriii","ellle.7","circus_perfomers","elegantraveler","luca_82_ch","sebastiensatta","expl0_photo","7sevengirl","susassight","marian.good","franziskajann","kontal.kontil","gk_photoroom","rusjaandri","swiss_pepe","kellermarri","sarahrahelalena","tobiasweinhold","suprmeme_ch","lessielessie","jasy_k","bluegirl911","sharpfisch_artwork","wglove26","_vali.k","marina___marinchen","tardigradar","bettywooh","rischaswiss","wiwienne_yang","almazurich","minii_mandy","karesperanza","polaua","sushj92","sisizwae","jmfluna","kurusu_jp","philipmattinson","estherpamies_","maisathome","thegorgeousnothings1"]
         
         for username in white:
             self.squser.set_white(username)
