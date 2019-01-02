@@ -29,7 +29,7 @@ class Optimization(object):
         ## Connect to SQL-DB HOST:
         username_host = 'underfcuk'
         self.login_host = Session_login(self.username_host)     
-        pwd = self.login_host.d['pwd']
+#        pwd = self.login_host.d['pwd'] ### To do: Fix this shit
         pwd = "atleastitried"  ## to do fix: get the right user handling
         print("pwd under ", pwd)
         
@@ -51,9 +51,7 @@ class Optimization(object):
         ##  : update Friendship
         self.update_friendships(userID_target)                               
         
-        ##  Followings and Followers update  
-       # Activate self.update_friendships_recent(userID_target, 200)        
-
+        self.update_friendship_recent(userID_target, 200)
            
         ## Log out
         elapsed_time = time.time() - start_time 
@@ -124,14 +122,6 @@ class Optimization(object):
         return True # nötig für update_ist in Stats
 
     ## Friendship ##########################                  
-                              
-    def convert_to_dict(self, l):
-        dic = {}
-        for i in range( len(l) ):
-           userID = l[i]["pk"]
-           username = l[i]["username"]           
-           dic[userID] = username
-        return dic
            
     def define_reciprocals(self, followings, followers):
         reciprocals = {}
@@ -158,6 +148,22 @@ class Optimization(object):
         Log("Amount of Fans: " + str(len(fans)))        
         return fans         
           
+    def update_friendship_recent(self, target_userID, follower_amount):
+        if not self.olderThan(0.95, self.login_target.d['last_update_friendship_recent']):
+            return False                
+        
+        Log("\n__________ Small Friendship update __________ \n This will take a while. Lay back")                          
+        followers = self.API.get_followers_feed(target_userID, follower_amount) ## To do: change to all    
+
+        ## Update only the status of the last 200 Followers
+        for userID in followers:
+            try:    ## update reciprocal
+               self.squser.update_follower(userID)
+            except Exception as inst:                                   ## insert falls private follow
+                self.squser.insert_follows(userID, followers[userID], datetime.now(), None, None, "Fan", datetime.now(), None) 
+                
+        self.squser.db.commit()  
+        self.login_target.update_last_update_friendship_recent()                        
     
     def update_friendships(self,target_userID):
         if not self.olderThan(30, self.login_target.d['last_update_friendship']):
@@ -165,13 +171,9 @@ class Optimization(object):
             
         all_follows = self.squser.fetch_follows()  
         
-        print("\n__________ Big Friendship update __________ \n This will take a while. Lay back")                          
-        followers_list = self.API.get_followers_feed(target_userID, 15000) ## To do: change to all
-        following_list = self.API.get_following_feed(target_userID)
-        
-        ## Create dics of followers and followings
-        followers = self.convert_to_dict(followers_list)
-        followings = self.convert_to_dict(following_list)                    
+        Log("\n__________ Big Friendship update __________ \n This will take a while. Lay back")                          
+        followers = self.API.get_followers_feed(target_userID, 15000) ## To do: change to all
+        followings = self.API.get_following_feed(target_userID)                 
         
         ## Create dics of reciprocals, non_reciprocals and fans
         reciprocals = self.define_reciprocals(followings, followers)                 
@@ -179,11 +181,11 @@ class Optimization(object):
         fans = self.define_fans(followings, followers)        
         
         ## Update reciprocals, Non_reciprocals and fans: Check: There should be no old reciprocal date left
-        self.squser.update_reciprocal(reciprocals)
+        self.squser.update_reciprocal(reciprocals)  
         self.squser.update_non_reciprocals(non_reciprocals)
         self.squser.update_fans(fans, all_follows)
         self.squser.db.commit() 
-        
+
                     
         ### remove all users who were fans
         for userID in all_follows:
@@ -195,8 +197,11 @@ class Optimization(object):
                             sql_task = "UPDATE Follows SET reciprocal = ?, u = ?  WHERE userID = ?"
                             self.squser.c.execute(sql_task, (None, None, userID))   
                     
-        self.squser.db.commit()  
+         
+        ## Update dates of last update date in Login
+        self.squser.db.commit() 
         self.login_target.update_last_update_friendship()
+        self.login_target.update_last_update_friendship_recent()
         #self.export_friendship(followers, followings, 'before_')    
         #self.export_calc_friendship(reciprocals, non_reciprocals, fans)
              
@@ -215,7 +220,3 @@ class Optimization(object):
         else:
             self.API.login()   
             return True
-
-
-#username_target = 'pixelline'
-#Optimization(username_target)    

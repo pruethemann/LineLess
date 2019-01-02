@@ -20,14 +20,24 @@ class Session_user(object):
             print("Successfully connected to ", username)
         except Exception:
             print("DB ", username, " not found!")
-            
+        
         ### Execute to reduce file size SQL
 #        self.vacuum()
             
-    def insert_follows(self,userID, username, datefollow, dateunfollow, reciprocal, origin, metrics, date_engage):   
-#        origin = origin.encode('utf8')      
+    def insert_follows(self,userID, username, datefollow, dateunfollow, reciprocal, origin, date_engage, metrics = None):         
+        if metrics != None:
+            follower_count = metrics['follower_count']
+            following_count = metrics['following_count'] 
+            media_count = metrics['media_count']
+            is_private = metrics['is_private']
+        else:
+            follower_count = None
+            following_count = None
+            media_count = None
+            is_private = None            
+        
         self.c.execute('''INSERT INTO Follows(userID, username, datefollow, dateunfollow, reciprocal, origin,follower_count, following_count, media_count, is_private, date_engage)
-                          VALUES(?,?,?,?,?,?,?,?,?,?,?)''', (userID, username, datefollow, dateunfollow, reciprocal, origin,metrics['follower_count'], metrics['following_count'], metrics['media_count'], metrics['is_private'], date_engage))
+                          VALUES(?,?,?,?,?,?,?,?,?,?,?)''', (userID, username, datefollow, dateunfollow, reciprocal, origin,follower_count, following_count, media_count, is_private, date_engage))
         self.db.commit() 
         
     def insert_likes(self,mediaID,userID,origin,caption):
@@ -92,11 +102,12 @@ class Session_user(object):
                     print("shit happens, as usual")
         self.db.commit()
              
-        
-    def delete_queues(self):    
-        ## Delete old entries first
-        self.c.execute("delete from queue where id = '%s' " % 1)       
-        self.db.commit()        
+    
+    ## Delete every entry in a col of the table Follows ## To do: catch exception if col_name wrong
+    def delete_column(self, col_name):
+        sql_task = "UPDATE Follows SET " + col_name + " = ? WHERE userID > ?"
+        self.c.execute(sql_task, (None, 0))
+        self.db.commit()
 
     def fetch_queue(self):       
         self.c.execute('''SELECT userID, username, origin, mediaID, caption, time, follower_count, following_count, media_count, is_private FROM Queue''')
@@ -371,12 +382,27 @@ class Session_user(object):
              (old, userID))              
         self.db.commit()    
         
-    def update_friendship(self,userID,reciprocal, dateunfollow):     
+       
+    ## Update reciprocal status of userID    
+    def update_following(self,userID, deleted = False):
+        if deleted:
+            now = None
+        else:
+            now = datetime.now()              
+        
         self.c.execute('''UPDATE Follows SET reciprocal = ? WHERE userID = ? ''',
-         (reciprocal, userID))     
-        if dateunfollow != False:
-            self.c.execute('''UPDATE Follows SET dateunfollow = ? WHERE userID = ? ''',
-             (dateunfollow, userID))   
+             (now, userID))      
+
+    ## Update reciprocal date    
+    def update_follower(self,userID, deleted = False):
+        if deleted:
+            now = None
+        else:
+            now = datetime.now()              
+        
+        self.c.execute('''UPDATE Follows SET reciprocal = ? WHERE userID = ? ''',
+             (now, userID))   
+                   
     
     ## gets a dic of all userIDs which are reciprocal. Updates reciprocal date and username (in case uername changed)
     ## To do: Consider solving it over bool. And keep reciprocal date as original interaction
@@ -397,6 +423,7 @@ class Session_user(object):
         
         self.db.commit()   
     
+    ## updates all non_reciprocals
     def update_non_reciprocals(self,non_reciprocals):           
         now = datetime.now() 
         for userID in non_reciprocals:
@@ -435,22 +462,8 @@ class Session_user(object):
         if all_follows[userID]['dateunfollow'] == None:
             self.c.execute('''UPDATE Follows SET dateunfollow = ? WHERE userID = ? ''',
                     (old, userID))                                         
-            
-    # to do: insert follow is broken            
-    def update_user_status(self,userID,username,status):
-        old =  datetime.date(1990,1,1)  
-        if status == 'reciprocal':
-            try:
-                self.insert_follows(userID,username,status,old)      
-            except Exception:
-                self.update_nonreciprocal(userID)
                 
-        if status == 'nonreciprocal':
-            try:
-                self.insert_follows(userID,username,status,old)                
-            except Exception:
-                self.update_nonreciprocal(userID) 
-                
+    ## Update engage date            
     def update_engage(self,userID, datum): 
         self.c.execute('''UPDATE Follows SET date_engage = ? WHERE userID = ? ''',
          (datum, userID))            
@@ -470,8 +483,7 @@ class Session_user(object):
         
     def connect_db(self,db):
         self.db = sqlite3.connect(db)
-        self.c = self.db.cursor()        
-        
+        self.c = self.db.cursor()               
                         
 
     def close(self):

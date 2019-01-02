@@ -3,7 +3,7 @@
 """
     #########################################################
     ###                                                   ###
-    ###             Technical Update                      ###
+    ###             Git - I am coming                     ###
     ###                                                   ###    
     #########################################################
 
@@ -14,12 +14,15 @@ Highlights:
     - increase likes per user from 3 to 4-5
     - func: calculateDuration
     - Port to Git
+    - Update-friendship_recent Totaler neuer Approach
+    - Delete orphan functions
+    - fix big friendship
+    - Inseret a function to delete every entry in a column
+    - Bug fix: Bei Programmabsturz / Zu viele Follows Likes: wird Queue nicht überschrieben. Bereits gelikte media wurden nochmal geliket (Ältester bekannter bug)
     
     
 To do: (short time):
-    
     - Separate Statistics from Lineless
-    - fix big friendship
     - Fix export: including Overview
     - Finalize comments stats
     - renaming API to usr in Instagram 
@@ -107,7 +110,6 @@ class Lineless(object):
         self.set_following_limit(username)
         
         pwd = self.sqlogin.d['pwd']      
-        print("pwd pixelline", pwd)
         self.API = Instagram(username, pwd, self.sqlogin)
         
         ## Define non_reciprocals and followers to engage
@@ -209,12 +211,16 @@ class Lineless(object):
                 if t == 'media':                                 
                     mediaID = item[t][3]                
                     caption = item[t][4]
-                    self.API.like(mediaID, userID, self.squser, origin, caption)    
+                    if not self.API.like(mediaID, userID, self.squser, origin, caption):  
+                        self.updateDB()
+                        break
                     Log("   Like: " + str(username)  )                          
                 else: # user  
                     metrics = item[t][4]
 
-                    self.API.follow(userID, username, self.squser, origin, self.all_follows, metrics)  
+                    if not self.API.follow(userID, username, self.squser, origin, self.all_follows, metrics)  :
+                        self.updateDB() ## Exit Program
+                        break
                     self.sqlogin.update_limits(1)   
                     self.unfollow()     
                     # Repeat if queue is tFleisoo long
@@ -432,7 +438,9 @@ class Lineless(object):
                     if like_counts >= 3:
                         username = self.API.getUsername(user_feed, 0)
                         print("userID 1: ", userID, " username ", username)
-                        self.API.follow(userID, username, self.squser, 'shy_fan_' + count, self.all_follows) 
+                        if not self.API.follow(userID, username, self.squser, 'shy_fan_' + count, self.all_follows):
+                            self.updateDB()
+                            break
                         follow_count +=1                            
                         self.unfollow()
                         follow_count +=1                               
@@ -672,8 +680,8 @@ class Lineless(object):
                     self.squser.update_reciprocal(userID,now)
                     
             # user deleted himself        
-            except Exception: 
-                Log("Something went wrong with: Deleted user" + str( userID ))
+            except Exception as inst: 
+                Log("Something went wrong with: Deleted user" + str( userID ), inst.args)
                 self.squser.update_unfollow(userID) 
         
                 
@@ -745,7 +753,9 @@ class Lineless(object):
                 mediaID = self.API.getMediaID(feed,x)
                 caption = self.API.get_caption(feed, x)
                 if post_like_count < 1 or origin == 'engage': #user who only get engaged are not allowed to be added to queue
-                    self.API.like(mediaID,userID,self.squser, origin, caption)    
+                    if not self.API.like(mediaID,userID,self.squser, origin, caption):
+                        self.updateDB()
+                        break
                     Log("   Like: " + self.API.getUsername(feed,x) + "Nr: " + str( x+1) )
                 else: #add to queue                        
                     self.add_queue_media(userID, self.API.getUsername(feed,x), origin, mediaID, caption)

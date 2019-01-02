@@ -220,7 +220,18 @@ class Instagram(object):
             
         if len(followers) > 200:
              print("Amount imported followers: ", len(followers))
+             
+        followers = self.convert_to_dict(followers)
+    
         return followers   
+    
+    def convert_to_dict(self, l):
+            dic = {}
+            for i in range( len(l) ):
+               userID = l[i]["pk"]
+               username = l[i]["username"]           
+               dic[userID] = username
+            return dic      
     
     # I have no clue how this works, but it's working.
     def get_following_feed(self,userID):    
@@ -250,7 +261,7 @@ class Instagram(object):
                  
         try:
             if self.API.follow(userID):
-                sqluser.insert_follows(userID, username, now, None, None, origin, metrics, now)
+                sqluser.insert_follows(userID, username, now, None, None, origin, now, metrics)
      
                 #add now follower data to cache To do: add follower and following_count
                 follower = {}
@@ -269,12 +280,12 @@ class Instagram(object):
                 #print("Daily Follows: ", self.daily_follows)
                 if self.daily_follows > 290:
                     Log("ATTENTION. Daily FOLLOW counts reached. " +  str(self.daily_follows))
-                    sys.exit()
+                    return False ## Programm wird beendet
                     
                 limit = self.sqlogin.get_limits() 
-                print("limit: ", limit)
+                print("Limit: ", limit)
                 
-                if limit < -10:
+                if limit < 0:
                     Log("Script stopped. " + str(self.daily_follows))
                     sys.exit()
             else:
@@ -294,7 +305,7 @@ class Instagram(object):
             #print("Daily Likes: ", self.daily_likes)
             if self.daily_likes > 1450:
                 Log("ATTENTION. Daily like counts reached. " + str(self.daily_likes))
-                sys.exit()
+                return False
         self.wait("middle", "Like")
         
     
