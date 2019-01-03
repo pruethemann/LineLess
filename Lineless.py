@@ -7,9 +7,6 @@
     ###                                                   ###    
     #########################################################
 
-
-
-
 Highlights:
     - increase likes per user from 3 to 4-5
     - func: calculateDuration
@@ -19,9 +16,10 @@ Highlights:
     - fix big friendship
     - Inseret a function to delete every entry in a column
     - Bug fix: Bei Programmabsturz / Zu viele Follows Likes: wird Queue nicht überschrieben. Bereits gelikte media wurden nochmal geliket (Ältester bekannter bug)
-    
+    - bug fix: if less than 500 folowers in DB the script crashes because of the resolution in the engagment algorithm    
     
 To do: (short time):
+    - Ladebalken für Loading
     - Separate Statistics from Lineless
     - Fix export: including Overview
     - Finalize comments stats
@@ -37,19 +35,12 @@ To do (long term):
     - Fix bug if Stats folder doesn't exist -> crash
  - fix that there are two connections to userDB (Vaccum bug)
 - Engage module is still buggy and not straightforward
-- Import all metadata
-    - Clearly separates host and guest
 - import all likes into a dict
-- never like in the same minute
-    - like at least 60 s after the last
 - fix infinte recurion if no tags or users fullfil criteria
-- in case of crash execute updateDB
-- in case of running out: import new hashtags, users   
 - Queue update: consider expected like time and at least 60 s since last one
 - optimize friendship update again. import shy fans over recent update. 
 - Before you follow them. check whether they are already followers. otherwise ignore. They are already good fans
 - dried out bool: Optizime time handling. import all in the first pic
-- bug fix: if less than 500 folowers in DB the script crashes because of the resolution in the engagment algorithm
 - to do: if a user is dried out: save it in DB. Maybe date in the futur?
 - To do: overwrite username during engagment to have the newest username
 - To do: calculate time duration efficiencys
@@ -63,8 +54,8 @@ from datetime import datetime, timedelta
 from Session_user import Session_user
 from Session_login import Session_login
 from Statistics import Statistics
-import time
-import sys, urllib.error
+import time, math
+import sys
 from urllib.request import urlopen
 from Log import Log
 from Metrics import Metrics
@@ -88,7 +79,7 @@ class Lineless(object):
    
     def __init__(self,username):  
         start_time = time.time()  
-        Log("\n Version: 80.0")
+        Log("\n Version: 81.0")
         
         self.username = username
         
@@ -211,16 +202,16 @@ class Lineless(object):
                 if t == 'media':                                 
                     mediaID = item[t][3]                
                     caption = item[t][4]
-                    if not self.API.like(mediaID, userID, self.squser, origin, caption):  
+                    if self.API.like(mediaID, userID, self.squser, origin, caption) == False:  
                         self.updateDB()
-                        break
+                        sys.exit()
                     Log("   Like: " + str(username)  )                          
                 else: # user  
                     metrics = item[t][4]
 
-                    if not self.API.follow(userID, username, self.squser, origin, self.all_follows, metrics)  :
+                    if self.API.follow(userID, username, self.squser, origin, self.all_follows, metrics) == False:
                         self.updateDB() ## Exit Program
-                        break
+                        sys.exit()
                     self.sqlogin.update_limits(1)   
                     self.unfollow()     
                     # Repeat if queue is tFleisoo long
@@ -233,7 +224,7 @@ class Lineless(object):
         counter = 0
         
         while(self.sqlogin.get_limits() > 0 and counter < 100):
-            random = randint(1, 4)   
+            random = randint(1, 5)   
                     
             if random == 1:
             ### Engage via Likes
@@ -249,6 +240,10 @@ class Lineless(object):
                 ### Engage via Comments
                 (userID, limit) = self.get_user('commenter')    
                 self.commenter_module(userID, limit)
+                
+            elif random == 4:                    
+                ### Engage via Comments
+                self.metrics_module(2)                
     
             else:   
                 ### Engange old followers
@@ -256,14 +251,18 @@ class Lineless(object):
                 
             counter+=1;       
 
+    # Calculates limit based on exp function: y = a * exp(b* x) + c
     def calculate_limits(self, efficiency_diff):
         self.sqlogin.fetch_login(self.username)               
       
         if efficiency_diff < 0:
             return 0
-            
-        # To do: include exp function to make it rational
-        limit = int( (efficiency_diff * 100)**2 + 10)
+        
+        print("Current Efficiency Diff: ", efficiency_diff)
+        # Randbedingung (0,0)     (1,50)   (0.2/30)
+        a = -50.5 # = -c
+        b = -4.5
+        limit = a * math.exp(b * efficiency_diff) - a
                
         if self.sqlogin.d['follows_left'] >= limit:
             return limit
@@ -300,9 +299,7 @@ class Lineless(object):
                 x += randint(1, 3) #choose next random post
             else:
 #                print("User already followed: ", userID, " x:", x)
-                x += 1 #check next user
-        if self.sqlogin.get_limits() > 0:
-            self.API.wait('extreme', "End of Tag Module")                  
+                x += 1 #check next user              
                     
     def media_liker_module(self,parent_userID, limit):
         if parent_userID == None or limit == 0:
@@ -355,9 +352,6 @@ class Lineless(object):
                     if ignore_count >= 500:
                         Log(parentname + " is dried out")
                         break
-                    #print("User already followed: ", userID, " ",username, " Private: ", is_private)
-        if self.sqlogin.get_limits() > 0:
-            self.API.wait('extreme', "End of Media Liker module") 
                
     def commenter_module(self,parent_userID, limit):        
         if parent_userID == None or limit == 0:
@@ -405,11 +399,28 @@ class Lineless(object):
                     if ignore_count >= 30:
                         Log(parentname + " is dried out")
                         break
-                    
-        if self.sqlogin.get_limits() > 0:            
-            self.API.wait('extreme', "End of commenter Module") 
 
-                   
+    def metrics_module(self, limit):        
+        if limit <= 0:
+            return False  
+        
+        Log("\n__________ Metrics Module __________")            
+        metrics_feed = self.metrics.get_user(0,5)
+        following_count = 0  
+        
+        for userID in metrics_feed:        
+            if following_count >= limit:
+                    break
+                
+            ## check whether I already followed this person once
+            if not self.API.is_followed(userID,self.all_follows, self.queue): 
+                ### is this person worth to follow according to metrics
+                metrics = self.check_followbility(userID,True)
+                user_feed = self.API.get_user_feed(userID,1)
+                origin = 'ML ' + str(metrics_feed[userID])
+                amount_likes = randint(4,5)
+                following_count += self.likePosts(user_feed,amount_likes, origin, 0, 5000, metrics)                     
+                    
                    
     def engage_module(self,amount):
             Log("\n__________ Engage Module __________")
@@ -440,7 +451,7 @@ class Lineless(object):
                         print("userID 1: ", userID, " username ", username)
                         if not self.API.follow(userID, username, self.squser, 'shy_fan_' + count, self.all_follows):
                             self.updateDB()
-                            break
+                            sys.exit()
                         follow_count +=1                            
                         self.unfollow()
                         follow_count +=1                               
@@ -610,7 +621,7 @@ class Lineless(object):
         return metrics
         
    
-    def check_followbility(self, userID):
+    def check_followbility(self, userID, metrics = False):
         metrics = self.get_userinfo(userID)
         
         ## Save metrics in Metrics DB
@@ -619,6 +630,10 @@ class Lineless(object):
         followings = metrics['following_count']
         followers = metrics['follower_count']
         is_private = metrics['is_private']
+        
+        ## For metrics module: Continue independt of criteria
+        if metrics:
+            return metrics
         
         ### Only consider people who fullfil the following criteria:
         # - not private
@@ -752,10 +767,10 @@ class Lineless(object):
             if self.checkLikes(feed,x,minLikes,maxLikes,self.queue):
                 mediaID = self.API.getMediaID(feed,x)
                 caption = self.API.get_caption(feed, x)
-                if post_like_count < 1 or origin == 'engage': #user who only get engaged are not allowed to be added to queue
-                    if not self.API.like(mediaID,userID,self.squser, origin, caption):
+                if post_like_count < 2 or origin == 'engage': #user who only get engaged are not allowed to be added to queue
+                    if self.API.like(mediaID,userID,self.squser, origin, caption) == False:
                         self.updateDB()
-                        break
+                        sys.exit()
                     Log("   Like: " + self.API.getUsername(feed,x) + "Nr: " + str( x+1) )
                 else: #add to queue                        
                     self.add_queue_media(userID, self.API.getUsername(feed,x), origin, mediaID, caption)

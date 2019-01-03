@@ -43,15 +43,18 @@ class Statistics(object):
         ### To do: save all_follows in API
         self.followers = self.API.get_followers(all_follows)
         
-        ## To do: Check the quality and the actuality of the data. otherwise start lineless optimizsaiton
         
-        ## Calculate efficiency and export it
-        
+           
+        ## Calculate efficiency and export it        
         self.calc_efficiency()
-        self.daily_stats() # print statistics  
+        self.daily_stats() # print statistics 
+
         
         ## Calculate Engagement
-        self.likes_own_posts = self.squser.fetch_liked()    
+        start_time  = time.time()
+        self.likes_own_posts = self.squser.fetch_liked()  
+        elapsed_time = time.time() - start_time  
+        print("Time Likes ", elapsed_time/60)         
         self.own_posts = self.squser.fetch_own_posts()
         self.update_ist_counts() ##place after optimizsaiton
         self.top_likers = self.get_top_likers()  
@@ -61,15 +64,12 @@ class Statistics(object):
         self.commentless_followers = self.get_commentless_followers(self.top_commenters, self.followers)
         self.ghost_followers = self.get_ghostfollowers(self.likeless_followers, self.commentless_followers)
         self.shy_fans = self.get_shy_fans(self.top_likers, self.top_commenters, self.followers)
-        elapsed_time = time.time() - start_time 
-        
-        print("Time Assembly ", elapsed_time/60)  
-        
+        elapsed_time = time.time() - start_time  
+        print("Time Assembly ", elapsed_time/60)         
         
         start_time =  time.time()
         self.export_statistics(followings, all_follows, username)  
         elapsed_time = time.time() - start_time 
-        
         print("Time Export ", elapsed_time/60)   
     
     ## rate users according number of likes        

@@ -22,7 +22,7 @@ class Session_user(object):
             print("DB ", username, " not found!")
         
         ### Execute to reduce file size SQL
-#        self.vacuum()
+  #      self.vacuum()
             
     def insert_follows(self,userID, username, datefollow, dateunfollow, reciprocal, origin, date_engage, metrics = None):         
         if metrics != None:
@@ -381,17 +381,7 @@ class Session_user(object):
             self.c.execute('''UPDATE Follows SET dateunfollow = ? WHERE userID = ? ''',
              (old, userID))              
         self.db.commit()    
-        
-       
-    ## Update reciprocal status of userID    
-    def update_following(self,userID, deleted = False):
-        if deleted:
-            now = None
-        else:
-            now = datetime.now()              
-        
-        self.c.execute('''UPDATE Follows SET reciprocal = ? WHERE userID = ? ''',
-             (now, userID))      
+           
 
     ## Update reciprocal date    
     def update_follower(self,userID, deleted = False):

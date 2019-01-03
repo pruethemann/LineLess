@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import requests
-import random
 import json
 import hashlib
 import hmac

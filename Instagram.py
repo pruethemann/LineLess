@@ -297,6 +297,7 @@ class Instagram(object):
             print(type(inst.args))                      
         
     def like(self,mediaID,userID,sqluser,origin,caption):
+     #   print("media " , mediaID, " userID ", userID, " origin ", origin )
         self.add_request()
         self.add_likes()
         if self.API.like(mediaID):
@@ -305,6 +306,7 @@ class Instagram(object):
             #print("Daily Likes: ", self.daily_likes)
             if self.daily_likes > 1450:
                 Log("ATTENTION. Daily like counts reached. " + str(self.daily_likes))
+                print("ich werde ausgelöst")
                 return False
         self.wait("middle", "Like")
         

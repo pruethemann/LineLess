@@ -20,20 +20,13 @@ class Metrics(object):
         here = os.path.dirname(os.path.realpath(__file__)) 
         subdir = os.path.dirname(here) # cd ..
         importFile = os.path.join(subdir, 'DB', 'Metrics')     
-
         
         try:
             self.connect_db(importFile)
             print("Successfully connected to Metrics")
         except Exception:
             print("DB Metrics not found! Kill script.") 
-            sys.exit()
-
-                    
-        
-    def insert_feed(self, mediaID, feed):
-        for userID in feed:                      
-            self.import_users(userID, mediaID)            
+            sys.exit()     
 
             
     def import_meta(self, feed, new_mediaID, new_tags, new_location, target):     
@@ -108,7 +101,7 @@ class Metrics(object):
 
         return meta_string.strip()      
                
-   ### To do: insert try         
+   ## To do: insert try         
     def insert_liker(self,userID, mediaID, tags, location, target):                                                                                                                                                                                                                 
         try:
             sql_task = "INSERT INTO " + target + "(userID, mediaID, count, tags, locations, following_count, follower_count, media_count, is_private) VALUES(?,?,?,?,?,?,?,?,?)"
@@ -122,6 +115,18 @@ class Metrics(object):
         self.c.execute(sql_task, (mediaID, count, tags, locations, userID))            
 #        print("New user updated ", userID, tags, locations)
         
+    def get_user(self, minID, minCount):        
+        sql_task = "SELECT UserID, count FROM Likers"
+        
+        self.c.execute(sql_task) 
+        metrics_feed = {}
+        for row in self.c:   
+            if row[1] > minCount:
+                metrics_feed[row[0]] = row[1]
+        
+        return metrics_feed
+    
+    
     def update_userinfo(self,userID, userinfo):
         following_count = userinfo['following_count']
         follower_count = userinfo['follower_count']   
@@ -153,5 +158,3 @@ class Metrics(object):
         self.c.execute("VACUUM")
 #        self.db.close()   
 
-
-#Metrics()
