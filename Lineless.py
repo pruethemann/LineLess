@@ -17,6 +17,8 @@ Highlights:
     - Inseret a function to delete every entry in a column
     - Bug fix: Bei Programmabsturz / Zu viele Follows Likes: wird Queue nicht überschrieben. Bereits gelikte media wurden nochmal geliket (Ältester bekannter bug)
     - bug fix: if less than 500 folowers in DB the script crashes because of the resolution in the engagment algorithm    
+    - Bug fix: Continue if date_engage == private
+    - Bug fix: Crash in Modul Commenter falls user gar keine Kommentare hat
     
 To do: (short time):
     - Ladebalken für Loading
@@ -224,7 +226,7 @@ class Lineless(object):
         counter = 0
         
         while(self.sqlogin.get_limits() > 0 and counter < 100):
-            random = randint(1, 5)   
+            random = randint(1, 4)   
                     
             if random == 1:
             ### Engage via Likes
@@ -243,11 +245,12 @@ class Lineless(object):
                 
             elif random == 4:                    
                 ### Engage via Comments
-                self.metrics_module(2)                
+                self.engage_module(8)                
     
             else:   
                 ### Engange old followers
-                self.engage_module(8)   
+                  
+                self.metrics_module(2) 
                 
             counter+=1;       
 
@@ -468,9 +471,9 @@ class Lineless(object):
                     except Exception: 
                         Log("to do: delete, userid: " + userID)
                         
-                    if date_engage == None:
+                    if date_engage == None or date_engage == 'private':
                         date_engage = self.all_follows[userID]['datefollow'] #private follows. Date of engagement is unknown
-                        if date_engage == None:
+                        if date_engage == None or date_engage == 'private':
                             continue # to do: consider Fans
                     
                     now = datetime.now() 
@@ -481,7 +484,6 @@ class Lineless(object):
                         if len(user_feed) == 0: #user is either private, deleted himself or blocked me. Anyway, we don't care
                             continue   
                         metrics = self.get_userinfo(userID)
-                        print("userID 2: ", userID)
                         self.likePosts(user_feed,2,'engage',0,5000, metrics)
                         self.squser.update_engage(userID, now)  
                         engage_count +=1   

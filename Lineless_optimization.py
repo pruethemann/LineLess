@@ -49,7 +49,7 @@ class Optimization(object):
         self.update_engagement(userID_target)  
 
         ##  : update Friendship
-        self.update_friendships(userID_target)                               
+      #  self.update_friendships(userID_target)                               
         
         self.update_friendship_recent(userID_target, 200)
            
@@ -131,7 +131,6 @@ class Optimization(object):
         Log("\nAmount Reciprocals users: " + str(len(reciprocals)))
         return reciprocals
     
-    ## to do: check whether define_nonrecipticals and fans can be merged 
     def define_nonreciprocals(self, followings, followers):
         non_reciprocals = {}
         for userID in followings:

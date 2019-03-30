@@ -159,7 +159,10 @@ class Instagram(object):
         while True:
             self.add_request()
             self.API.getMediaComments(mediaID, next_max_id)       
-            feed = self.API.LastJson      
+            feed = self.API.LastJson  
+            
+            if not 'comments' in feed:
+                continue #User hat keine Kommentare
             
             for i in range( len(feed["comments"]) ):
                 commenter = {}
