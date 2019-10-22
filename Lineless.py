@@ -226,7 +226,7 @@ class Lineless(object):
         counter = 0
         
         while(self.sqlogin.get_limits() > 0 and counter < 100):
-            random = randint(1, 4)   
+            random = randint(1, 3)   
                     
             if random == 1:
             ### Engage via Likes
@@ -719,6 +719,11 @@ class Lineless(object):
             ## Check whether I have engaged this person at least 20 days ago (Enough time to import stats)
             date_engage = self.all_follows[userID]['date_engage']
             now = datetime.now() 
+            
+            ## ignore classifiers like private Todo find a better solution
+            if type(date_engage ) is str:
+                continue
+            
             if date_engage != None and date_engage < (now - timedelta(20)):
                 self.API.unfollow(userID,self.squser)
                 # remove user from current following list
